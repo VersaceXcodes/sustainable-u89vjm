@@ -1,0 +1,1116 @@
+openapi: 3.0.0
+info:
+  title: SustainaReview API
+  description: API for SustainaReview platform to empower consumers with
+    sustainable product information.
+  version: 1.0.0
+servers:
+  - url: http://localhost:3000/api
+    description: Development server
+paths:
+  /users:
+    post:
+      operationId: register_user
+      summary: Register a new user account.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                username:
+                  type: string
+                  description: Unique username for the user.
+                email:
+                  type: string
+                  format: email
+                  description: User's email address, used for login and verification.
+                password:
+                  type: string
+                  format: password
+                  description: User's chosen password. Must meet complexity requirements.
+              required:
+                - username
+                - email
+                - password
+      responses:
+        "201":
+          description: User registered successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user_id:
+                    type: string
+                    description: The unique identifier for the newly created user.
+                  message:
+                    type: string
+                    description: Confirmation message indicating successful registration and next
+                      steps (e.g., email verification).
+        "400":
+          description: Bad request (e.g., invalid input, weak password).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+        "409":
+          description: Conflict (e.g., username or email already exists).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+  /auth/login:
+    post:
+      operationId: login_user
+      summary: Authenticate a user and issue an access token.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  format: email
+                  description: User's registered email address.
+                password:
+                  type: string
+                  format: password
+                  description: User's password.
+              required:
+                - email
+                - password
+      responses:
+        "200":
+          description: Authentication successful.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user_id:
+                    type: string
+                    description: The unique identifier for the authenticated user.
+                  username:
+                    type: string
+                    description: The username of the authenticated user.
+                  access_token:
+                    type: string
+                    description: JWT or other token for authenticating subsequent requests.
+                  token_type:
+                    type: string
+                    enum:
+                      - Bearer
+                    description: The type of token issued.
+                  expires_in:
+                    type: integer
+                    description: The token's validity period in seconds.
+        "400":
+          description: Bad request (e.g., missing email or password).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+        "401":
+          description: Unauthorized (e.g., invalid credentials).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+  /auth/reset-password-request:
+    post:
+      operationId: request_password_reset
+      summary: Request a password reset email.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  format: email
+                  description: The email address associated with the user account.
+              required:
+                - email
+      responses:
+        "200":
+          description: Password reset initiated successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    description: Confirmation message indicating that an email has been sent if the
+                      account exists.
+        "400":
+          description: Bad request (e.g., invalid email format).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+  /auth/reset-password:
+    post:
+      operationId: execute_password_reset
+      summary: Execute the password reset using a token.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reset_token:
+                  type: string
+                  description: The token received via email for password reset.
+                new_password:
+                  type: string
+                  format: password
+                  description: The new password for the user account.
+              required:
+                - reset_token
+                - new_password
+      responses:
+        "200":
+          description: Password reset successful.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    description: Confirmation message indicating successful password reset.
+        "400":
+          description: Bad request (e.g., missing token or password).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+        "401":
+          description: Unauthorized (e.g., invalid or expired reset token).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+  /users/me:
+    get:
+      operationId: get_current_user_profile
+      summary: Retrieve the profile information for the authenticated user.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: User profile retrieved successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user_id:
+                    type: string
+                    description: The unique identifier for the user.
+                  username:
+                    type: string
+                    description: The user's username.
+                  email:
+                    type: string
+                    format: email
+                    description: The user's email address.
+        "401":
+          description: Unauthorized (authentication token is missing or invalid).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+        "404":
+          description: User not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+    put:
+      operationId: update_current_user_password
+      summary: Update the password for the authenticated user.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                current_password:
+                  type: string
+                  format: password
+                  description: The user's current password for verification.
+                new_password:
+                  type: string
+                  format: password
+                  description: The new password for the user account.
+              required:
+                - current_password
+                - new_password
+      responses:
+        "200":
+          description: Password updated successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    description: Confirmation message.
+        "400":
+          description: Bad request (e.g., invalid input, weak new password).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+        "401":
+          description: Unauthorized (authentication token is missing or invalid).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+        "403":
+          description: Forbidden (e.g., incorrect current password).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+  /categories:
+    get:
+      operationId: get_product_categories
+      summary: Retrieve a list of all available product categories.
+      responses:
+        "200":
+          description: List of product categories.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/category"
+  /attributes:
+    get:
+      operationId: get_product_attributes
+      summary: Retrieve a list of all available product attributes, filterable by type.
+      parameters:
+        - name: type
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - sustainability
+              - ethical
+              - durability
+          description: Filter attributes by their type (sustainability, ethical,
+            durability).
+      responses:
+        "200":
+          description: List of product attributes.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/productAttribute"
+  /products:
+    get:
+      operationId: search_and_filter_products
+      summary: Search, filter, and sort products.
+      parameters:
+        - name: q
+          in: query
+          required: false
+          schema:
+            type: string
+          description: General search query for product name or brand.
+        - name: category_id
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter products by a specific category ID.
+        - name: brand_name
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter products by a specific brand name.
+        - name: min_sustainability_score
+          in: query
+          required: false
+          schema:
+            type: number
+          description: Minimum sustainability score.
+        - name: min_ethical_score
+          in: query
+          required: false
+          schema:
+            type: number
+          description: Minimum ethical score.
+        - name: min_durability_score
+          in: query
+          required: false
+          schema:
+            type: number
+          description: Minimum durability score.
+        - name: attribute_ids
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Comma-separated list of attribute IDs to filter by (e.g.,
+            'attr_recycled,attr_vegan').
+        - name: sort_by
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - overall_score
+              - sustainability_score
+              - ethical_score
+              - durability_score
+              - name
+              - brand_name
+              - created_at
+          description: Field to sort the results by.
+        - name: sort_order
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - asc
+              - desc
+          description: Order of sorting (ascending or descending).
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 1
+          description: Page number for pagination.
+        - name: pageSize
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 20
+          description: Number of items per page.
+      responses:
+        "200":
+          description: List of products matching the criteria.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  products:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/productListCard"
+                  pagination:
+                    $ref: "#/components/schemas/paginationInfo"
+        "400":
+          description: Bad request (e.g., invalid filter parameters).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+  /products/{product_id}:
+    get:
+      operationId: get_product_details
+      summary: Retrieve detailed information for a specific product.
+      parameters:
+        - name: product_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The unique identifier of the product.
+      responses:
+        "200":
+          description: Product details retrieved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/productDetail"
+        "404":
+          description: Product not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+  /products/{product_id}/reviews:
+    post:
+      operationId: submit_review_for_product
+      summary: Submit a new review for a specific product.
+      parameters:
+        - name: product_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The unique identifier of the product to review.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                  description: Title of the review.
+                body:
+                  type: string
+                  description: The main content of the review.
+                overall_rating:
+                  type: number
+                  format: integer
+                  description: Overall rating for the product (1-5).
+                sustainability_rating:
+                  type: number
+                  format: integer
+                  description: Specific rating for sustainability (1-5, optional).
+                ethical_rating:
+                  type: number
+                  format: integer
+                  description: Specific rating for ethical sourcing (1-5, optional).
+                durability_rating:
+                  type: number
+                  format: integer
+                  description: Specific rating for durability (1-5, optional).
+                photos:
+                  type: array
+                  items:
+                    type: string
+                    format: binary
+                  description: Optional photos to include with the review.
+              required:
+                - title
+                - body
+                - overall_rating
+      responses:
+        "201":
+          description: Review submitted successfully and pending moderation.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  review_id:
+                    type: string
+                    description: The unique identifier of the submitted review.
+                  message:
+                    type: string
+                    description: Confirmation message.
+        "400":
+          description: Bad request (e.g., invalid input, missing required fields, file too
+            large).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+        "401":
+          description: Unauthorized (authentication required).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+        "404":
+          description: Product not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+  /reviews/{review_id}:
+    put:
+      operationId: update_review
+      summary: Update an existing review submitted by the user.
+      parameters:
+        - name: review_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The unique identifier of the review to update.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                  description: Updated title of the review.
+                body:
+                  type: string
+                  description: Updated main content of the review.
+                overall_rating:
+                  type: number
+                  format: integer
+                  description: Updated overall rating (1-5).
+                sustainability_rating:
+                  type: number
+                  format: integer
+                  description: Updated sustainability rating (1-5, optional).
+                ethical_rating:
+                  type: number
+                  format: integer
+                  description: Updated ethical rating (1-5, optional).
+                durability_rating:
+                  type: number
+                  format: integer
+                  description: Updated durability rating (1-5, optional).
+      responses:
+        "200":
+          description: Review updated successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  review_id:
+                    type: string
+                  message:
+                    type: string
+                    description: Confirmation message.
+        "400":
+          description: Bad request (e.g., invalid input).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+        "401":
+          description: Unauthorized (authentication required).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+        "403":
+          description: Forbidden (user does not own the review or review is not editable).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+        "404":
+          description: Review not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+    delete:
+      operationId: delete_review
+      summary: Delete a review submitted by the user.
+      parameters:
+        - name: review_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The unique identifier of the review to delete.
+      security:
+        - bearerAuth: []
+      responses:
+        "204":
+          description: Review deleted successfully.
+        "401":
+          description: Unauthorized (authentication required).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+        "403":
+          description: Forbidden (user does not own the review).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+        "404":
+          description: Review not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+  /reviews/{review_id}/vote:
+    post:
+      operationId: vote_on_review
+      summary: Record a helpful vote for a review.
+      parameters:
+        - name: review_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The unique identifier of the review to vote on.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                vote_type:
+                  type: string
+                  enum:
+                    - helpful
+                  description: The type of vote being cast.
+              required:
+                - vote_type
+      responses:
+        "200":
+          description: Vote recorded successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  review_id:
+                    type: string
+                  helpful_votes:
+                    type: integer
+                    description: The updated count of helpful votes.
+        "400":
+          description: Bad request (e.g., invalid vote type).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+        "401":
+          description: Unauthorized (authentication required).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+        "404":
+          description: Review not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+        "409":
+          description: Conflict (e.g., user has already voted).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+  /users/me/reviews:
+    get:
+      operationId: get_my_reviews
+      summary: Retrieve a list of reviews submitted by the authenticated user.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: List of user's submitted reviews.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/userReviewListItem"
+        "401":
+          description: Unauthorized (authentication required).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+  /users/me/bookmarks:
+    get:
+      operationId: get_my_bookmarked_products
+      summary: Retrieve a list of products bookmarked by the authenticated user.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: List of bookmarked products.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/bookmarkListItem"
+        "401":
+          description: Unauthorized (authentication required).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+  /products/{product_id}/bookmark:
+    post:
+      operationId: bookmark_product
+      summary: Bookmark a product for later reference.
+      parameters:
+        - name: product_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The unique identifier of the product to bookmark.
+      security:
+        - bearerAuth: []
+      responses:
+        "201":
+          description: Product bookmarked successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    description: Confirmation message.
+        "401":
+          description: Unauthorized (authentication required).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+        "404":
+          description: Product not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+        "409":
+          description: Conflict (product is already bookmarked by the user).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+    delete:
+      operationId: unbookmark_product
+      summary: Remove a previously bookmarked product.
+      parameters:
+        - name: product_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The unique identifier of the product to unbookmark.
+      security:
+        - bearerAuth: []
+      responses:
+        "204":
+          description: Product unbookmarked successfully.
+        "401":
+          description: Unauthorized (authentication required).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+        "404":
+          description: Product not found or not bookmarked by the user.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+  /upload/photo:
+    post:
+      operationId: upload_review_photo
+      summary: Upload a photo for a review.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: The image file to upload.
+              required:
+                - file
+      responses:
+        "201":
+          description: Photo uploaded successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  photo_url:
+                    type: string
+                    description: The URL of the uploaded photo.
+        "400":
+          description: Bad request (e.g., file type not supported, file too large).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+        "401":
+          description: Unauthorized (authentication required).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/errorResponse"
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    errorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: A message describing the error.
+      required:
+        - error
+    category:
+      type: object
+      properties:
+        category_id:
+          type: string
+          description: Unique identifier for the category.
+        name:
+          type: string
+          description: Name of the category.
+        description:
+          type: string
+          nullable: true
+          description: Optional description for the category.
+    productAttribute:
+      type: object
+      properties:
+        attribute_id:
+          type: string
+          description: Unique identifier for the attribute.
+        name:
+          type: string
+          description: Name of the attribute (e.g., "Recycled Materials").
+        attribute_type:
+          type: string
+          enum:
+            - sustainability
+            - ethical
+            - durability
+          description: Type of the attribute.
+        description:
+          type: string
+          nullable: true
+          description: Optional description for the attribute.
+    productListCard:
+      type: object
+      properties:
+        product_id:
+          type: string
+          description: Unique identifier for the product.
+        name:
+          type: string
+          description: Name of the product.
+        brand_name:
+          type: string
+          description: Brand of the product.
+        primary_image_url:
+          type: string
+          description: URL of the primary product image.
+        overall_score:
+          type: number
+          nullable: true
+          description: The overall sustainability, ethical, and durability score (e.g.,
+            4.5).
+        sustainability_score:
+          type: number
+          nullable: true
+          description: The sustainability score (e.g., 4.0).
+        ethical_score:
+          type: number
+          nullable: true
+          description: The ethical score (e.g., 4.2).
+        durability_score:
+          type: number
+          nullable: true
+          description: The durability score (e.g., 4.8).
+    paginationInfo:
+      type: object
+      properties:
+        currentPage:
+          type: integer
+          description: Current page number.
+        pageSize:
+          type: integer
+          description: Number of items per page.
+        totalPages:
+          type: integer
+          description: Total number of pages available.
+        totalProducts:
+          type: integer
+          description: Total number of products matching the query.
+    productDetail:
+      type: object
+      properties:
+        product_id:
+          type: string
+          description: Unique identifier for the product.
+        name:
+          type: string
+          description: Name of the product.
+        brand_name:
+          type: string
+          description: Brand of the product.
+        description:
+          type: string
+          description: Detailed description of the product.
+        images:
+          type: array
+          items:
+            type: object
+            properties:
+              url:
+                type: string
+                description: URL of the product image.
+              isPrimary:
+                type: boolean
+                description: Flag indicating if this is the primary image.
+        category:
+          $ref: "#/components/schemas/category"
+        scores:
+          type: object
+          properties:
+            overall:
+              type: number
+              nullable: true
+            sustainability:
+              type: number
+              nullable: true
+            ethical:
+              type: number
+              nullable: true
+            durability:
+              type: number
+              nullable: true
+        attributes:
+          type: array
+          items:
+            $ref: "#/components/schemas/productAttribute"
+        reviews:
+          type: array
+          items:
+            $ref: "#/components/schemas/reviewListItem"
+    reviewListItem:
+      type: object
+      properties:
+        review_id:
+          type: string
+          description: Unique identifier for the review.
+        user_id:
+          type: string
+          description: ID of the user who submitted the review.
+        username:
+          type: string
+          description: Username of the reviewer.
+        title:
+          type: string
+          description: Title of the review.
+        body:
+          type: string
+          description: Content of the review (possibly truncated for list views).
+        overall_rating:
+          type: number
+          description: The overall star rating given by the reviewer (1-5).
+        sustainability_rating:
+          type: number
+          nullable: true
+          description: The reviewer's sustainability rating (1-5, optional).
+        ethical_rating:
+          type: number
+          nullable: true
+          description: The reviewer's ethical rating (1-5, optional).
+        durability_rating:
+          type: number
+          nullable: true
+          description: The reviewer's durability rating (1-5, optional).
+        helpful_votes:
+          type: integer
+          description: Count of users who found this review helpful.
+        created_at:
+          type: string
+          format: date-time
+          description: Timestamp when the review was submitted.
+        photos:
+          type: array
+          items:
+            type: string
+            description: URL of an image attached to the review.
+          description: List of URLs for photos associated with the review.
+    userReviewListItem:
+      type: object
+      properties:
+        review_id:
+          type: string
+          description: Unique identifier for the review.
+        product_id:
+          type: string
+          description: Identifier of the product the review is for.
+        product_name:
+          type: string
+          description: Name of the product reviewed.
+        title:
+          type: string
+          description: Title of the review.
+        body:
+          type: string
+          description: Content of the review (potentially truncated).
+        overall_rating:
+          type: number
+          description: The overall star rating given (1-5).
+        moderation_status:
+          type: string
+          enum:
+            - pending
+            - approved
+            - rejected
+          description: Current moderation status of the review.
+        created_at:
+          type: string
+          format: date-time
+          description: Timestamp when the review was submitted.
+    bookmarkListItem:
+      type: object
+      properties:
+        product_id:
+          type: string
+          description: Unique identifier for the bookmarked product.
+        name:
+          type: string
+          description: Name of the bookmarked product.
+        brand_name:
+          type: string
+          description: Brand of the bookmarked product.
+        primary_image_url:
+          type: string
+          description: URL of the primary image for the bookmarked product.
+        overall_score:
+          type: number
+          nullable: true
+          description: The overall score of the bookmarked product.
+        category_name:
+          type: string
+          description: Name of the category the bookmarked product belongs to.
